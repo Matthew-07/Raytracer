@@ -1,0 +1,105 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\Raytracer">
+      <UniqueIdentifier>{42f2fa60-e699-4957-99a1-2b8224da846e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\RayTracer">
+      <UniqueIdentifier>{2be923b2-cd23-403a-b0d1-22d66f237884}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\RayTracer\Objects">
+      <UniqueIdentifier>{4adf03f9-982a-4bf3-a85b-98d4143a4d6c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Raytracer\Objects">
+      <UniqueIdentifier>{f7deee2a-26a8-4551-8383-0dc608c77dc9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\RayTracer\Lights">
+      <UniqueIdentifier>{87f8558f-19c1-4b69-a809-e8c6d2c568bd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Raytracer\Lights">
+      <UniqueIdentifier>{598b9298-77ed-4e51-a519-1643bf0b2c8b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Ray.cpp">
+      <Filter>Source Files\Raytracer</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Source Files\Raytracer</Filter>
+    </ClCompile>
+    <ClCompile Include="Object.cpp">
+      <Filter>Source Files\Raytracer\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="Sphere.cpp">
+      <Filter>Source Files\Raytracer\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="Light.cpp">
+      <Filter>Source Files\Raytracer\Lights</Filter>
+    </ClCompile>
+    <ClCompile Include="Renderer.cpp">
+      <Filter>Source Files\Raytracer</Filter>
+    </ClCompile>
+    <ClCompile Include="PointLight.cpp">
+      <Filter>Source Files\Raytracer\Lights</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Source Files\Raytracer</Filter>
+    </ClCompile>
+    <ClCompile Include="Plane.cpp">
+      <Filter>Source Files\Raytracer\Objects</Filter>
+    </ClCompile>
+    <ClCompile Include="SphericalLight.cpp">
+      <Filter>Source Files\Raytracer\Lights</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Ray.h">
+      <Filter>Header Files\RayTracer</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.h">
+      <Filter>Header Files\RayTracer</Filter>
+    </ClInclude>
+    <ClInclude Include="Object.h">
+      <Filter>Header Files\RayTracer\Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="Sphere.h">
+      <Filter>Header Files\RayTracer\Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="Light.h">
+      <Filter>Header Files\RayTracer\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="Renderer.h">
+      <Filter>Header Files\RayTracer</Filter>
+    </ClInclude>
+    <ClInclude Include="PointLight.h">
+      <Filter>Header Files\RayTracer\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
+      <Filter>Header Files\RayTracer</Filter>
+    </ClInclude>
+    <ClInclude Include="Plane.h">
+      <Filter>Header Files\RayTracer\Objects</Filter>
+    </ClInclude>
+    <ClInclude Include="SphericalLight.h">
+      <Filter>Header Files\RayTracer\Lights</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
