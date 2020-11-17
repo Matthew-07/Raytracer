@@ -2,8 +2,9 @@
 #include "Scene.h"
 
 #include "Sphere.h"
-
+#include "Plane.h"
 #include "PointLight.h"
+#include "SphericalLight.h"
 
 using namespace DirectX;
 
@@ -11,139 +12,354 @@ using namespace Raytracer;
 using namespace Objects;
 using namespace Lights;
 
+#define CHK_ALLOC(p)        do { if (!(p)) { hr = E_OUTOFMEMORY; goto CleanUp; } } while(0)
+
 UINT convert(float c) { return 255 * max(0, min(1, c)); }
 
-Raytracer::Scene::Scene(float fov, float aspectRatio, UINT pxWidth, UINT pxHeight, UINT numBounces) : camera(fov, aspectRatio, pxWidth, pxHeight)
-{
-	numberOfBounces = numBounces;
-	outputWidth = pxWidth;
-	outputHeight = pxHeight;
+XMVECTOR RGBHexToFloat(LPCWSTR colour) {
+	colour = colour + 1;
+	int r, g, b;
+	swscanf_s(colour, L"%2x%2x%2x", &r, &g, &b);
+	return XMVectorSet((float)r/255, (float)g/255, (float)b/255, 1.f);
 }
 
-IWICBitmap* Scene::renderScene(LPCWSTR path)
+void Raytracer::Scene::loadFromFile(LPCWSTR path)
 {
-	ID2D1Factory* pFactory;
-	IWICImagingFactory* pImageFactory;
-	ID2D1RenderTarget* pRenderTarget;
-	IWICBitmap* pOutput;
+	for (auto object : scene_objects) {
+		delete object;
+	}
+	scene_objects.clear();
 
-	CoInitialize(NULL);
+	for (auto light : scene_lights) {
+		delete light;
+	}
+	scene_lights.clear();
+	
+	enum SceneElements {
+		ELE_AmbientLight,
+		ELE_TruePointLight,
+		ELE_PointLight,
+		ELE_Sphere,
+		ELE_Plane
+	};
+
+	std::map<std::wstring, SceneElements> sceneElementsMap;
+	sceneElementsMap[L"ambient-light"] = ELE_AmbientLight;
+	sceneElementsMap[L"true-point-light"] = ELE_TruePointLight;
+	sceneElementsMap[L"point-light"] = ELE_PointLight;
+	sceneElementsMap[L"sphere"] = ELE_Sphere;
+	sceneElementsMap[L"plane"] = ELE_Plane;
+
+	enum AmbientProperties {
+		AM_Colour,
+		AM_Intensity
+	};
+
+	std::map<std::wstring, AmbientProperties> ambientMap;
+	ambientMap[L"colour"] = AM_Colour;
+	ambientMap[L"intensity"] = AM_Intensity;
+
+	enum TruePointProperties {
+		TP_Colour,
+		TP_Intensity,
+		TP_X,
+		TP_Y,
+		TP_Z
+	};
+
+	std::map<std::wstring, TruePointProperties> truePointMap;
+	truePointMap[L"colour"] = TP_Colour;
+	truePointMap[L"intensity"] = TP_Intensity;
+	truePointMap[L"x"] = TP_X;
+	truePointMap[L"y"] = TP_Y;
+	truePointMap[L"z"] = TP_Z;
+
+	enum PointProperties {
+		PT_Colour,
+		PT_Intensity,
+		PT_X,
+		PT_Y,
+		PT_Z,
+		PT_Radius
+	};
+
+	std::map<std::wstring, PointProperties> pointMap;
+	pointMap[L"colour"] = PT_Colour;
+	pointMap[L"intensity"] = PT_Intensity;
+	pointMap[L"x"] = PT_X;
+	pointMap[L"y"] = PT_Y;
+	pointMap[L"z"] = PT_Z;
+	pointMap[L"radius"] = PT_Radius;
+
+	enum SphereProperties {
+		SP_Colour,
+		SP_X,
+		SP_Y,
+		SP_Z,
+		SP_Radius,
+		SP_KS,
+		SP_KD,
+	};
+
+	std::map<std::wstring, SphereProperties> sphereMap;
+	sphereMap[L"colour"] = SP_Colour;
+	sphereMap[L"x"] = SP_X;
+	sphereMap[L"y"] = SP_Y;
+	sphereMap[L"z"] = SP_Z;
+	sphereMap[L"radius"] = SP_Radius;
+	sphereMap[L"kS"] = SP_KS;
+	sphereMap[L"kD"] = SP_KD;
+
+	enum PlaneProperties {
+		PL_Colour,
+		PL_X,
+		PL_Y,
+		PL_Z,
+		PL_NX,
+		PL_NY,
+		PL_NZ,
+		PL_DX,
+		PL_DY,
+		PL_DZ,
+		PL_KD,
+		PL_KS,
+	};
+
+	std::map<std::wstring, PlaneProperties> planeMap;
+	planeMap[L"colour"] = PL_Colour;
+	planeMap[L"x"] = PL_X;
+	planeMap[L"y"] = PL_Y;
+	planeMap[L"z"] = PL_Z;
+	planeMap[L"nx"] = PL_NX;
+	planeMap[L"ny"] = PL_NY;
+	planeMap[L"nz"] = PL_NZ;
+	planeMap[L"dx"] = PL_DX;
+	planeMap[L"dy"] = PL_DY;
+	planeMap[L"dz"] = PL_DZ;
+	planeMap[L"kS"] = PL_KS;
+	planeMap[L"kD"] = PL_KD;
+
+	MSXML::IXMLDOMDocument2Ptr xmlDoc;
 	HRESULT hr;
 
-	if (FAILED(CoCreateInstance(
-		CLSID_WICImagingFactory2,
-		NULL,
-		CLSCTX_INPROC_SERVER,
-		IID_PPV_ARGS(&pImageFactory)
-	))) throw std::exception("Failed to create WIC Imaging factory.");
+	if (FAILED(hr = xmlDoc.CreateInstance(__uuidof(MSXML::DOMDocument60),
+		NULL, CLSCTX_INPROC_SERVER)));
 
-	if (pImageFactory == NULL) throw std::exception("Imaging Factory was NULL.");
+	xmlDoc->put_async(VARIANT_FALSE);
+	xmlDoc->put_validateOnParse(VARIANT_FALSE);
+	xmlDoc->put_resolveExternals(VARIANT_FALSE);
+	xmlDoc->put_preserveWhiteSpace(VARIANT_TRUE);
 
-	if (FAILED(pImageFactory->CreateBitmap(
-		outputWidth,
-		outputHeight,
-		GUID_WICPixelFormat32bppPRGBA,
-		WICBitmapCacheOnDemand,
-		&pOutput
-	))) throw std::exception("Faield to create Bitmap");
+	if (xmlDoc->load(path) != VARIANT_TRUE) {
+		printf("Unable to load %s\n", path);
+	}
+	else {
+		printf("XML was successfully loaded\n");
 
-	WICRect rect;
-	rect.Width = outputWidth;
-	rect.Height = outputHeight;
-	rect.X = 0;
-	rect.Y = 0;
+		xmlDoc->setProperty("SelectionLanguage", "XPath");
+		MSXML::IXMLDOMNodeListPtr pNodes = xmlDoc->selectNodes(L"//scene[1]/*");
+		
+		if (!pNodes) {
+			throw std::exception("Failed to load scene.");
+		}
 
-	IWICBitmapLock *lock;
+		long length = 0;
+		pNodes->get_length(&length);
 
-	if (FAILED(pOutput->Lock(&rect, WICBitmapLockWrite, &lock))) throw std::exception("Failed to achieve bitmap lock.");
-	
-	UINT cbBufferSize = 0;
-	UINT cbStride = 0;
-	UINT8* pv = NULL;
+		MSXML::IXMLDOMNode * pNode;
+		BSTR bstrNodeName;
 
-	if (FAILED(lock->GetStride(&cbStride))) throw std::exception("Failed to get lock stride.");
+		for (int i = 0; i < length; i++) {
+			pNodes->get_item(i, &pNode);
+			pNode->get_nodeName(&bstrNodeName);
 
-	if (FAILED(lock->GetDataPointer(&cbBufferSize, &pv))) throw std::exception("Failed to get data pointer.");
+			MSXML::IXMLDOMNamedNodeMap* pNodeProperties;
+			MSXML::IXMLDOMNode* pNodeProperty;
 
-#pragma omp parallel for
-	for (int x = 0; x < outputWidth; x++) {
-#pragma omp parallel for
-		for (int y = 0; y < outputHeight; y++) {
-			XMVECTOR colour = XMVECTOR();
-			// TODO: Calculate pixel colour
-			for (int s = 0; s < samplesPerPixel; s++) {
-				Ray ray = camera.castRay(x, y);
-				colour += renderer.trace(this, &ray, numberOfBounces);
+			pNode->get_attributes(&pNodeProperties);
+			long numProperties;
+			pNodeProperties->get_length(&numProperties);
+
+			BSTR bstrPropertyName;
+
+			switch (sceneElementsMap[bstrNodeName]) {
+			case ELE_AmbientLight:
+			{		
+				for (int p = 0; p < numProperties; p++) {
+					pNodeProperties->get_item(p, &pNodeProperty);
+					pNodeProperty->get_nodeName(&bstrPropertyName);
+					CComVariant value;
+					pNodeProperty->get_nodeValue(&value);
+
+					switch (ambientMap[bstrPropertyName]) {
+					case AM_Colour:							
+						ambientLighting = RGBHexToFloat(value.bstrVal);
+						break;
+					case AM_Intensity:
+						ambientIntensity = std::wcstof(value.bstrVal, NULL);
+						break;
+					}
+				}
+				break;
 			}
+			case ELE_TruePointLight:
+			{
+				PointLight* newObj = new PointLight();
+				for (int p = 0; p < numProperties; p++) {
+					pNodeProperties->get_item(p, &pNodeProperty);
+					pNodeProperty->get_nodeName(&bstrPropertyName);
+					CComVariant value;
+					pNodeProperty->get_nodeValue(&value);
 
-			colour /= samplesPerPixel;
-			colour = toneMap(colour);
-			colour = XMVectorClamp(colour, XMVectorZero(), XMVectorSet(1.f, 1.f, 1.f, 1.f));
+					switch (truePointMap[bstrPropertyName]) {
+					case TP_Colour:
+						newObj->setColour(RGBHexToFloat(value.bstrVal));
+						break;
+					case TP_Intensity:
+						newObj->setIntensity(std::wcstof(value.bstrVal, NULL));
+						break;
+					case TP_X:
+						newObj->setX(std::wcstof(value.bstrVal, NULL));
+						break;
+					case TP_Y:
+						newObj->setY(std::wcstof(value.bstrVal, NULL));
+						break;
+					case TP_Z:
+						newObj->setZ(std::wcstof(value.bstrVal, NULL));
+						break;
+					}
+				}
+				addLight(newObj);
+				break;
+			}
+			case ELE_PointLight:
+			{
+				SphericalLight* newObj = new SphericalLight();
+				for (int p = 0; p < numProperties; p++) {
+					pNodeProperties->get_item(p, &pNodeProperty);
+					pNodeProperty->get_nodeName(&bstrPropertyName);
+					CComVariant value;
+					pNodeProperty->get_nodeValue(&value);
 
-			XMFLOAT3 rgb;
-			XMStoreFloat3(&rgb, colour);
+					switch (pointMap[bstrPropertyName]) {
+					case PT_Colour:
+						newObj->setColour(RGBHexToFloat(value.bstrVal));
+						break;
+					case PT_Intensity:
+						newObj->setIntensity(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PT_X:
+						newObj->setX(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PT_Y:
+						newObj->setY(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PT_Z:
+						newObj->setZ(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PT_Radius:
+						newObj->setRadius(std::wcstof(value.bstrVal, NULL));
+						break;
+					}
+				}
+				addLight(newObj);
+				break;
+			}
+			case ELE_Sphere:
+			{
+				Sphere *newObj = new Sphere();
+				for (int p = 0; p < numProperties; p++) {
+					pNodeProperties->get_item(p, &pNodeProperty);
+					pNodeProperty->get_nodeName(&bstrPropertyName);
+					CComVariant value;
+					pNodeProperty->get_nodeValue(&value);
 
-			UINT offset = x * 4 + y * cbStride;
-			UINT8 red = rgb.x * 255;
-			UINT8 green = rgb.y * 255;
-			UINT8 blue = rgb.z * 255;
-			*(pv + offset) = red;
-			*(pv + offset + 1) = green;
-			*(pv + offset + 2) = blue;
-			*(pv + offset + 3) = 255;
+					switch (sphereMap[bstrPropertyName]) {
+					case SP_Colour:
+						newObj->setDiffuseColour(RGBHexToFloat(value.bstrVal));
+						break;
+					case SP_Radius:
+						newObj->setRadius(std::wcstof(value.bstrVal, NULL));
+						break;
+					case SP_X:
+						newObj->setX(std::wcstof(value.bstrVal, NULL));
+						break;
+					case SP_Y:
+						newObj->setY(std::wcstof(value.bstrVal, NULL));
+						break;
+					case SP_Z:
+						newObj->setZ(std::wcstof(value.bstrVal, NULL));
+						break;
+
+					case SP_KD:
+						newObj->setPhongKD(std::wcstof(value.bstrVal, NULL));
+						break;
+					case SP_KS:
+						newObj->setPhongKS(std::wcstof(value.bstrVal, NULL));
+						break;
+					}
+				}
+				addObject(newObj);
+				break;
+			}
+			case ELE_Plane:
+			{
+				Plane* newObj = new Plane();
+				for (int p = 0; p < numProperties; p++) {
+					pNodeProperties->get_item(p, &pNodeProperty);
+					pNodeProperty->get_nodeName(&bstrPropertyName);
+					CComVariant value;
+					pNodeProperty->get_nodeValue(&value);
+
+					switch (planeMap[bstrPropertyName]) {
+					case PL_Colour:
+						newObj->setDiffuseColour(RGBHexToFloat(value.bstrVal));
+						break;
+					case PL_X:
+						newObj->setX(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PL_Y:
+						newObj->setY(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PL_Z:
+						newObj->setZ(std::wcstof(value.bstrVal, NULL));
+						break;
+
+					case PL_NX:
+						newObj->setNormalX(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PL_NY:
+						newObj->setNormalY(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PL_NZ:
+						newObj->setNormalZ(std::wcstof(value.bstrVal, NULL));
+						break;
+
+					case PL_DX:
+						newObj->setDirectionX(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PL_DY:
+						newObj->setDirectionY(std::wcstof(value.bstrVal, NULL));
+						break;
+					case PL_DZ:
+						newObj->setDirectionZ(std::wcstof(value.bstrVal, NULL));
+						break;
+
+					case PL_KD:
+						newObj->setPhongKD(std::wcstof(value.bstrVal, NULL));
+						break;					
+					case PL_KS:
+						newObj->setPhongKS(std::wcstof(value.bstrVal, NULL));
+						break;
+					}
+
+				}
+				addObject(newObj);
+				break;
+			}
+			}			
 		}
 	}
-
-	SafeRelease(&lock);
-
-	// Save Bitmap to file
-	
-	IWICStream* stream;
-	if (FAILED(hr = pImageFactory->CreateStream(&stream)))
-		throw std::exception("Failed to create stream.");
-
-	if (FAILED(hr = stream->InitializeFromFilename(path, GENERIC_WRITE)))
-		throw std::exception("Failed to initalise stream.");
-
-	IWICBitmapEncoder* pEncoder;
-	
-	if (FAILED(hr = pImageFactory->CreateEncoder(
-		GUID_ContainerFormatBmp, // GUID_ContainerFormatPng
-		NULL,    // No preferred codec vendor.
-		&pEncoder
-	))) throw std::exception("Failed to create bitmap encoder.");
-
-	if (FAILED(hr = pEncoder->Initialize(
-		stream,
-		WICBitmapEncoderNoCache
-	))) throw std::exception("Failed to initalise bitmap encoder.");
-
-	IWICBitmapFrameEncode* pFrameEncoder;
-	if (FAILED(pEncoder->CreateNewFrame(
-		&pFrameEncoder,
-		NULL
-	))) throw std::exception("Failed to create bitmap frame encoder.");
-
-	if (FAILED(hr = pFrameEncoder->Initialize(nullptr))) throw std::exception("Failed to initalise frame encoder.");
-	//if (FAILED(hr = pFrameEncoder->SetSize(outputWidth, outputHeight))) throw std::exception("Failed to set size of frame encoder.");
-	WICPixelFormatGUID format = GUID_WICPixelFormat32bppPRGBA;
-	//if (FAILED(hr = pFrameEncoder->SetPixelFormat(&format))) throw std::exception("Failed to set frame encoder format.");
-
-	if (FAILED(hr = pFrameEncoder->WriteSource(pOutput, NULL))) throw std::exception("Failed to write source to frame encoder.");
-
-	pEncoder->SetThumbnail(pOutput);
-
-	pFrameEncoder->Commit();
-	pEncoder->Commit();
-
-
-	// Release Bitmap
-	SafeRelease(&pOutput);
-	SafeRelease(&pImageFactory);
-
-	SafeRelease(&pEncoder);
-	SafeRelease(&pFrameEncoder);
-	SafeRelease(&stream);
 }
 
 RayHit Scene::getClosestIntersection(Ray ray)
@@ -169,34 +385,22 @@ void Raytracer::Scene::addObject(Object*s)
 	scene_objects.push_back(s);
 }
 
-void Raytracer::Scene::setAmbientLighting(DirectX::XMVECTOR ambient)
+void Raytracer::Scene::setAmbientColour(DirectX::XMVECTOR ambient)
 {
 	ambientLighting = ambient;
 }
 
+void Raytracer::Scene::setAmbientIntensity(float intensity)
+{
+	ambientIntensity = intensity;
+}
+
 XMVECTOR Scene::getAmbientLighting()
 {
-	return ambientLighting;
+	return ambientLighting * ambientIntensity;
 }
 
 std::list<Raytracer::Lights::Light*>& Raytracer::Scene::getSceneLights()
 {
 	return scene_lights;
-}
-
-XMVECTOR Raytracer::Scene::toneMap(XMVECTOR linearRGB)
-{
-	float invGamma = 1. / 2.2;
-	float a = 2;  // controls brightness
-	float b = 1.3; // controls contrast
-
-	// Sigmoidal tone mapping
-	XMVECTOR powRGB = XMVectorPow(linearRGB, XMVectorSet(b, b, b, b));
-	float c = pow(0.5 / a, b);
-	XMVECTOR displayRGB = powRGB * (XMVectorSet(1, 1, 1, 1) / (powRGB + XMVectorSet(c, c, c, c)));
-
-	// Display encoding - gamma
-	XMVECTOR gammaRGB = XMVectorPow(displayRGB, XMVectorSet(invGamma, invGamma, invGamma, invGamma));
-
-	return gammaRGB;
 }

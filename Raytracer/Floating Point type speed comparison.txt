@@ -1,0 +1,3 @@
+precise: 2778
+fast: 1779
+strict: 3048

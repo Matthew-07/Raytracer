@@ -102,4 +102,7 @@
       <Filter>Header Files\RayTracer\Lights</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <Xml Include="default_scene.xml" />
+  </ItemGroup>
 </Project>

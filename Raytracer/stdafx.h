@@ -18,7 +18,7 @@
 #include <d2d1.h>
 #include <DirectXMath.h>
 
-#include <algorithm>
+//#include <algorithm>
 
 #pragma comment(lib, "d2d1")
 
@@ -29,7 +29,14 @@
 #include <list>
 #include <random>
 #include <ctime>
+#include <chrono>
 #include <limits>
+#include <map>
+#include <fstream>
+
+#include <tchar.h>
+#import <msxml6.dll> rename_namespace(_T("MSXML"))
+#include <atlbase.h>
 
 #define POSITIVE_INFINITY std::numeric_limits<float>::infinity();
 #define NEGATIVE_INFINITY (-1 * std::numeric_limits<float>::infinity());

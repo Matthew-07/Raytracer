@@ -10,14 +10,24 @@ void Object::setPosition(XMVECTOR pos)
 	position = pos;
 }
 
+void Raytracer::Objects::Object::setX(float x)
+{
+	position = XMVectorSetX(position, x);
+}
+
+void Raytracer::Objects::Object::setY(float y)
+{
+	position = XMVectorSetY(position, y);
+}
+
+void Raytracer::Objects::Object::setZ(float z)
+{
+	position = XMVectorSetZ(position, z);
+}
+
 void Object::setDiffuseColour(XMVECTOR colour)
 {
 	diff_c = colour;
-}
-
-void Object::setSpecularColour(XMVECTOR colour)
-{
-	spec_c = colour;
 }
 
 void Object::setPhongKD(float kd)
@@ -50,10 +60,6 @@ XMVECTOR Object::getDiffuseColour(DirectX::XMVECTOR position)
 	return diff_c;
 }
 
-XMVECTOR Object::getSpecularColour(DirectX::XMVECTOR position)
-{
-	return spec_c;
-}
 
 float Object::getPhongKD()
 {

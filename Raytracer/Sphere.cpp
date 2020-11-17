@@ -11,6 +11,11 @@ Sphere::Sphere(XMVECTOR pos, float radius)
 	this->radius = radius;
 }
 
+void Raytracer::Objects::Sphere::setRadius(float radius)
+{
+	this->radius = radius;
+}
+
 RayHit Sphere::getIntersect(Ray incomingRay)
 {
 	XMVECTOR& D = incomingRay.direction;

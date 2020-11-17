@@ -18,10 +18,14 @@ namespace Raytracer {
 			virtual RayHit getIntersect(Ray incomingRay) = 0;
 			virtual DirectX::XMVECTOR getNormalAt(DirectX::XMVECTOR point) = 0;
 
+			virtual void prepare() {} // Ensure state is valid before render
+
 			void setPosition(DirectX::XMVECTOR pos);
+			void setX(float x);
+			void setY(float y);
+			void setZ(float z);
 
 			void setDiffuseColour(DirectX::XMVECTOR colour);
-			void setSpecularColour(DirectX::XMVECTOR colour);
 			void setPhongKD(float kd);
 			void setPhongKS(float ks);
 			void setAlpha(float a);
@@ -30,17 +34,15 @@ namespace Raytracer {
 			DirectX::XMVECTOR getPosition();
 
 			virtual DirectX::XMVECTOR getDiffuseColour(DirectX::XMVECTOR position);
-			virtual DirectX::XMVECTOR getSpecularColour(DirectX::XMVECTOR position);
 			float getPhongKD();
 			float getPhongKS();
 			float getAlpha();
 			float getRelectivity();
 
 		protected:
-			DirectX::XMVECTOR position;
+			DirectX::XMVECTOR position = DirectX::XMVectorZero();
 
-			DirectX::XMVECTOR diff_c;
-			DirectX::XMVECTOR spec_c;
+			DirectX::XMVECTOR diff_c = DirectX::XMVectorZero();
 			float k_d = 0.8, k_s = 1.2, alpha = 10, reflectivity = 0.3;
 		};
 	}

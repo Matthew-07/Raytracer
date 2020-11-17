@@ -14,9 +14,9 @@ LightContributions Raytracer::Lights::SphericalLight::sample(Scene* scene, Direc
 
     LightContributions result;
     for (int i = 0; i < numberOfSamples; i++) {
-        XMVECTOR offset = XMVector3Normalize(XMVectorSet(rand(),rand(),rand(),0));
+        XMVECTOR offset = radius * XMVector3Normalize(XMVectorSet(rand(),rand(),rand(),0));
         if (XMVectorGetX(XMVector3Dot(offset, normal)) > 0) offset *= -1;
-        rayContributions(scene, origin, normal, view, alpha, position+offset, totalColour/numberOfSamples, result);
+        rayContributions(scene, origin, normal, view, alpha, position+offset, colour, intensity / numberOfSamples, result);
     }
     return result;
 }
